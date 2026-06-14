@@ -2,7 +2,12 @@ name: Build & Deploy Knowledge Hub
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    paths-ignore:
+      - manifest.json
+      - search_index.json
+
   workflow_dispatch:
 
 permissions:
@@ -10,22 +15,30 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           pip install pdfplumber beautifulsoup4
 
@@ -37,13 +50,24 @@ jobs:
 
       - name: Commit updated index files
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add manifest.json search_index.json
-          git diff --cached --quiet || git commit -m "chore: regenerate manifest and search index [skip ci]"
-          git push
+
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: regenerate manifest and search index"
+            git push
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
 
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
-        # Requires GitHub Pages to be configured to deploy from 'GitHub Actions'
-        # in Settings > Pages > Source
