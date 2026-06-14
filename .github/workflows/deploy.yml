@@ -1,0 +1,49 @@
+name: Build & Deploy Knowledge Hub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install pdfplumber beautifulsoup4
+
+      - name: Generate manifest.json
+        run: python generate_manifest.py
+
+      - name: Generate search_index.json
+        run: python generate_search_index.py
+
+      - name: Commit updated index files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add manifest.json search_index.json
+          git diff --cached --quiet || git commit -m "chore: regenerate manifest and search index [skip ci]"
+          git push
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+        # Requires GitHub Pages to be configured to deploy from 'GitHub Actions'
+        # in Settings > Pages > Source

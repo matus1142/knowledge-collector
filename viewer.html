@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document Viewer — Knowledge Hub</title>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.2.0/marked.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension/lib/index.umd.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link id="hljs-dark" rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link id="hljs-light" rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" disabled>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
+
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension/lib/index.umd.js"></script>
+    <script src="viewer.js" defer></script>
+
+    <style>
+        /* ── Theme variables (mirrors style.css) ── */
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #161b22;
+            --bg-code: #1c2128;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent: #58a6ff;
+            --accent-hover: #79b8ff;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+            --radius-sm: 4px;
+            --radius-md: 8px;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f6f8fa;
+            --bg-code: #f0f3f6;
+            --border: #d0d7de;
+            --text-primary: #1f2328;
+            --text-secondary: #57606a;
+            --text-muted: #8c959f;
+            --accent: #0969da;
+            --accent-hover: #0550ae;
+            --green: #1a7f37;
+            --yellow: #9a6700;
+            --red: #cf222e;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ── Reset ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 15px;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── Layout ── */
+        #viewer-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            font-family: inherit;
+        }
+
+        #back-btn:hover {
+            background: var(--bg-code);
+            color: var(--text-primary);
+        }
+
+        #file-path-display {
+            flex: 1;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #theme-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        #theme-btn:hover {
+            background: var(--bg-code);
+            color: var(--text-primary);
+        }
+
+        #toc-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            font-family: inherit;
+        }
+
+        #toc-toggle:hover {
+            background: var(--bg-code);
+            color: var(--text-primary);
+        }
+
+        /* ── Main article layout ── */
+        #layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px;
+            gap: 32px;
+        }
+
+        /* ── TOC ── */
+        #toc-panel {
+            width: 220px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 70px;
+            max-height: calc(100vh - 90px);
+            overflow-y: auto;
+            font-size: 0.8rem;
+        }
+
+        #toc-panel.hidden {
+            display: none;
+        }
+
+        #toc-panel h3 {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 3px 0 3px 8px;
+            border-left: 2px solid var(--border);
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.15s, border-color 0.15s;
+            line-height: 1.4;
+            margin-bottom: 2px;
+        }
+
+        .toc-item:hover,
+        .toc-item.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+        }
+
+        .toc-h2 {
+            padding-left: 8px;
+        }
+
+        .toc-h3 {
+            padding-left: 20px;
+            font-size: 0.75rem;
+        }
+
+        .toc-h4 {
+            padding-left: 32px;
+            font-size: 0.72rem;
+        }
+
+        /* ── Article ── */
+        #article {
+            flex: 1;
+            min-width: 0;
+            max-width: 760px;
+        }
+
+        /* ── Markdown Styles ── */
+        .md-body h1,
+        .md-body h2,
+        .md-body h3,
+        .md-body h4,
+        .md-body h5,
+        .md-body h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+            line-height: 1.3;
+            margin: 1.6em 0 0.5em;
+            scroll-margin-top: 80px;
+        }
+
+        .md-body h1 {
+            font-size: 1.9rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.4em;
+        }
+
+        .md-body h2 {
+            font-size: 1.4rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.3em;
+        }
+
+        .md-body h3 {
+            font-size: 1.15rem;
+        }
+
+        .md-body h4 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .md-body p {
+            margin: 0.8em 0;
+        }
+
+        .md-body a {
+            color: var(--accent);
+        }
+
+        .md-body a:hover {
+            color: var(--accent-hover);
+        }
+
+        .md-body strong {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .md-body em {
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .md-body ul,
+        .md-body ol {
+            margin: 0.6em 0;
+            padding-left: 1.8em;
+        }
+
+        .md-body li {
+            margin: 0.25em 0;
+        }
+
+        .md-body blockquote {
+            border-left: 3px solid var(--accent);
+            background: var(--bg-secondary);
+            padding: 8px 16px;
+            margin: 1em 0;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            color: var(--text-secondary);
+        }
+
+        .md-body code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85em;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1px 5px;
+            color: var(--green);
+        }
+
+        .md-body pre {
+            background: var(--bg-code) !important;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            overflow-x: auto;
+            margin: 1em 0;
+            position: relative;
+        }
+
+        .md-body pre code {
+            background: none !important;
+            border: none !important;
+            padding: 0 !important;
+            font-size: 0.85rem;
+            color: inherit;
+        }
+
+        .md-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+            font-size: 0.88rem;
+        }
+
+        .md-body th,
+        .md-body td {
+            border: 1px solid var(--border);
+            padding: 7px 12px;
+            text-align: left;
+        }
+
+        .md-body th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .md-body tr:nth-child(even) td {
+            background: var(--bg-secondary);
+        }
+
+        .md-body img {
+            max-width: 100%;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+
+        .md-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 2em 0;
+        }
+
+        /* Code copy button */
+        .code-wrapper {
+            position: relative;
+        }
+
+        .code-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 3px 8px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .code-copy-btn:hover {
+            background: var(--bg-code);
+            color: var(--text-primary);
+        }
+
+        /* Frontmatter metadata */
+        #frontmatter-meta {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .meta-tag {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.72rem;
+            color: var(--accent);
+        }
+
+        /* Loading / error states */
+        #loading,
+        #error-state {
+            padding: 60px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        #error-state {
+            color: var(--red);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #toc-panel {
+                display: none !important;
+            }
+
+            #layout {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="viewer-header">
+        <button id="back-btn" onclick="history.back()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Back
+        </button>
+
+        <span id="file-path-display">Loading…</span>
+
+        <button id="toc-toggle" title="Toggle table of contents">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="15" y2="12" />
+                <line x1="3" y1="18" x2="11" y2="18" />
+            </svg>
+            TOC
+        </button>
+
+        <button id="theme-btn" title="Toggle theme">
+            <svg id="v-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <svg id="v-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" style="display:none">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+        </button>
+    </div>
+
+    <div id="layout">
+        <nav id="toc-panel">
+            <h3>Contents</h3>
+            <div id="toc-list"></div>
+        </nav>
+
+        <article id="article">
+            <div id="frontmatter-meta" style="display:none"></div>
+            <div id="loading">Loading document…</div>
+            <div id="error-state" style="display:none"></div>
+            <div id="md-content" class="md-body" style="display:none"></div>
+        </article>
+    </div>
+
+</body>
+
+</html>

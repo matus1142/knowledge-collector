@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Meissner Effect — Quantum Levitation Explained</title>
+<style>
+  :root {
+    --bg:        #07090f;
+    --surface:   #0d1117;
+    --surface2:  #131929;
+    --surface3:  #1a2235;
+    --border:    #1e3058;
+    --text:      #d8e8ff;
+    --text-muted:#6a85b0;
+    --accent:    #38bdf8;   /* ice blue */
+    --accent2:   #818cf8;   /* purple */
+    --accent3:   #f472b6;   /* pink */
+    --success:   #34d399;
+    --warning:   #fbbf24;
+    --danger:    #f87171;
+    --glow:      rgba(56,189,248,0.25);
+    --font-display: 'Segoe UI', 'Inter', sans-serif;
+    --font-body:    'Segoe UI', system-ui, sans-serif;
+    --font-mono:    'Fira Code', 'Consolas', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ─── Layout ─── */
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  section { padding: 80px 0; border-bottom: 1px solid var(--border); }
+
+  h1 { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; line-height: 1.1; }
+  h2 { font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700; margin-bottom: 24px; color: var(--accent); }
+  h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; color: var(--text); }
+  p  { color: var(--text-muted); margin-bottom: 14px; }
+  p strong { color: var(--text); }
+
+  .label { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+
+  /* ─── Hero ─── */
+  #hero {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 60px 24px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(56,189,248,0.08) 0%, transparent 70%),
+                radial-gradient(ellipse at 80% 80%, rgba(129,140,248,0.06) 0%, transparent 60%),
+                var(--bg);
+    border-bottom: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+
+  #hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2338bdf8' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-block;
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.3);
+    color: var(--accent);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .hero-title { margin-bottom: 16px; }
+
+  .hero-title span.glow {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 560px;
+    margin: 0 auto 40px;
+  }
+
+  .hero-canvas-wrap {
+    width: 100%; max-width: 560px;
+    margin: 0 auto 40px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 0 60px rgba(56,189,248,0.15);
+  }
+
+  #heroCanvas { display: block; width: 100%; }
+
+  .hero-temp-display {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-family: var(--font-mono); font-size: 0.95rem; color: var(--text-muted);
+  }
+
+  .temp-val { color: var(--accent); font-weight: 700; font-size: 1.1rem; }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .callout {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 0.95rem;
+    color: var(--text);
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .callout.tip   { background: rgba(52,211,153,0.08); border-left: 3px solid var(--success); }
+  .callout.warn  { background: rgba(251,191,36,0.08); border-left: 3px solid var(--warning); }
+  .callout.key   { background: rgba(56,189,248,0.08); border-left: 3px solid var(--accent); }
+  .callout.fact  { background: rgba(129,140,248,0.08); border-left: 3px solid var(--accent2); }
+  .callout-icon  { font-size: 1.2rem; flex-shrink: 0; }
+
+  /* ─── Phase diagram viz ─── */
+  #phaseWrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin: 28px 0;
+  }
+
+  /* ─── Step-through section ─── */
+  .step-viewer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 28px 0;
+  }
+
+  .step-canvas-area { position: relative; }
+
+  #stepCanvas { display: block; width: 100%; }
+
+  .step-info {
+    padding: 20px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .step-title { font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+  .step-desc  { color: var(--text-muted); font-size: 0.93rem; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .controls button {
+    background: var(--surface3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-body);
+  }
+  .controls button:hover { background: var(--border); border-color: var(--accent); color: var(--accent); }
+  .controls button.active { background: rgba(56,189,248,0.15); border-color: var(--accent); color: var(--accent); }
+
+  .step-counter {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .step-counter span { color: var(--accent); font-weight: 700; }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+  }
+
+  /* ─── Temperature slider ─── */
+  .slider-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin: 28px 0;
+  }
+
+  .slider-row {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 20px; flex-wrap: wrap;
+  }
+
+  .slider-label { color: var(--text-muted); font-size: 0.9rem; flex-shrink: 0; }
+
+  input[type=range] {
+    flex: 1; min-width: 160px;
+    -webkit-appearance: none; appearance: none;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--glow);
+    transition: box-shadow 0.2s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 16px var(--glow); }
+
+  .temp-readout {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  #sliderCanvas { display: block; width: 100%; border-radius: 10px; }
+
+  /* ─── Phase diagram ─── */
+  #phaseCanvas { display: block; width: 100%; }
+
+  /* ─── Takeaways ─── */
+  .takeaway-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .takeaway-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+  .takeaway-text { font-size: 0.88rem; color: var(--text-muted); }
+  .takeaway-text strong { display: block; color: var(--text); font-size: 0.95rem; margin-bottom: 4px; }
+
+  /* ─── Quiz ─── */
+  .quiz-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-top: 20px;
+  }
+
+  .quiz-q { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+
+  .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+
+  .quiz-opt {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.93rem;
+    color: var(--text-muted);
+    text-align: left;
+  }
+  .quiz-opt:hover { border-color: var(--accent); color: var(--text); }
+  .quiz-opt.correct { background: rgba(52,211,153,0.12); border-color: var(--success); color: var(--success); }
+  .quiz-opt.wrong   { background: rgba(248,113,113,0.1); border-color: var(--danger);  color: var(--danger); }
+
+  .quiz-feedback {
+    margin-top: 14px; padding: 14px 18px;
+    border-radius: 8px; font-size: 0.9rem;
+    display: none;
+  }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok  { background: rgba(52,211,153,0.1); border-left: 3px solid var(--success); color: var(--success); }
+  .quiz-feedback.bad { background: rgba(248,113,113,0.1); border-left: 3px solid var(--danger); color: var(--danger); }
+
+  /* ─── Nav ─── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(7,9,15,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+
+  nav a {
+    color: var(--text-muted); text-decoration: none;
+    font-size: 0.83rem; padding: 4px 10px;
+    border-radius: 6px; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  nav a:hover { color: var(--accent); background: rgba(56,189,248,0.08); }
+  nav .nav-title { color: var(--accent); font-weight: 700; font-size: 0.9rem; margin-right: 8px; }
+
+  /* ─── Two columns ─── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media(max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ─── Equation box ─── */
+  .eq-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    color: var(--accent2);
+    text-align: center;
+    margin: 20px 0;
+    letter-spacing: 0.04em;
+  }
+
+  /* ─── Scroll fade-in ─── */
+  .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s; }
+  .fade-in.visible { opacity: 1; transform: none; }
+
+  /* ─── Footer ─── */
+  footer {
+    text-align: center; padding: 40px 24px;
+    color: var(--text-muted); font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-title">⚗️ Meissner Effect</span>
+  <a href="#why">Why It Matters</a>
+  <a href="#physics">The Physics</a>
+  <a href="#demo">Step-by-Step</a>
+  <a href="#temperature">Temperature Explorer</a>
+  <a href="#phase">Phase Diagram</a>
+  <a href="#takeaways">Takeaways</a>
+  <a href="#quiz">Quiz</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════ -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-badge">Quantum Physics · Superconductivity</div>
+    <h1 class="hero-title">The <span class="glow">Meissner Effect</span></h1>
+    <p class="hero-sub">
+      Why do objects suddenly float above a magnet when cooled below a critical temperature?
+      The answer lies deep inside quantum mechanics.
+    </p>
+
+    <div class="hero-canvas-wrap">
+      <canvas id="heroCanvas" height="280"></canvas>
+    </div>
+
+    <div class="hero-temp-display">
+      <span>Temperature:</span>
+      <span class="temp-val" id="heroTempVal">300 K</span>
+      <span>|</span>
+      <span id="heroStateLabel" style="color:var(--warning)">Normal conductor</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     WHY IT MATTERS
+═══════════════════════════════════════════════════ -->
+<section id="why">
+  <div class="container fade-in">
+    <div class="label">01 — Motivation</div>
+    <h2>Why Does Levitation Even Happen?</h2>
+
+    <p>
+      In 1933, German physicists <strong>Walther Meissner</strong> and <strong>Robert Ochsenfeld</strong>
+      discovered something shocking: a superconductor doesn't just conduct electricity without resistance —
+      it actively <strong>expels all magnetic fields</strong> from its interior.
+    </p>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="label">Real World Use</div>
+        <h3>🚄 Maglev Trains</h3>
+        <p>Japan's SCMaglev reaches 603 km/h using superconducting coils that levitate the train via the Meissner effect — zero contact, zero friction.</p>
+      </div>
+      <div class="card">
+        <div class="label">Real World Use</div>
+        <h3>🏥 MRI Scanners</h3>
+        <p>The strong, stable magnetic fields inside MRI machines are generated by superconducting coils cooled with liquid helium at ~4 K.</p>
+      </div>
+      <div class="card">
+        <div class="label">Future Tech</div>
+        <h3>⚡ Power Grids</h3>
+        <p>Superconducting power cables could transmit electricity with zero loss, potentially revolutionizing global energy infrastructure.</p>
+      </div>
+    </div>
+
+    <div class="callout key">
+      <span class="callout-icon">🔑</span>
+      <div><strong>Key Insight:</strong> Ordinary magnets attract or repel other magnets. But a superconductor actively "pushes back" against any magnetic field trying to enter it — this is what causes levitation.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     THE PHYSICS
+═══════════════════════════════════════════════════ -->
+<section id="physics">
+  <div class="container fade-in">
+    <div class="label">02 — Core Concept</div>
+    <h2>What's Actually Happening Inside?</h2>
+
+    <div class="two-col">
+      <div>
+        <h3>🌡️ Above Critical Temperature (Normal State)</h3>
+        <p>
+          Electrons move through the metal independently, colliding with atoms and generating heat.
+          Magnetic field lines pass <strong>freely through the material</strong>, just like any ordinary conductor.
+        </p>
+        <p>
+          Resistance is present. No levitation. Boring physics.
+        </p>
+      </div>
+      <div>
+        <h3>❄️ Below Critical Temperature (Superconducting State)</h3>
+        <p>
+          Electrons pair up into <strong>Cooper pairs</strong> — a quantum phenomenon where two electrons
+          with opposite momenta and spins form a bound state.
+        </p>
+        <p>
+          These pairs condense into a single quantum state (Bose-Einstein condensate), moving
+          without scattering. Zero resistance. And crucially — <strong>zero magnetic field inside</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout fact">
+      <span class="callout-icon">⚛️</span>
+      <div>
+        <strong>Cooper Pairs (BCS Theory, 1957):</strong> Two electrons that would normally repel each other
+        can form a bound pair by interacting through phonons (lattice vibrations). These pairs obey Bose–Einstein
+        statistics and can flow together without resistance.
+      </div>
+    </div>
+
+    <h3 style="margin-top:28px; margin-bottom:16px;">How Does the Field Get Expelled?</h3>
+    <p>
+      When a superconductor cools below its critical temperature T<sub>c</sub>, surface currents
+      spontaneously appear. These <strong>persistent surface currents</strong> generate their own
+      magnetic field that exactly cancels any external field inside the material.
+    </p>
+    <p>
+      This is described by the <strong>London equations</strong> — the magnetic field decays
+      exponentially from the surface over a distance called the <em>London penetration depth</em> (λ<sub>L</sub>).
+    </p>
+
+    <div class="eq-box">
+      B(x) = B₀ · e<sup>−x / λ<sub>L</sub></sup>
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <strong>Meissner ≠ Lenz's Law!</strong> Perfect conductors would also expel flux — but only
+        if cooled in zero field. Superconductors expel flux even if cooled <em>inside</em> a magnetic field.
+        This is the true Meissner effect, and it proves superconductivity is a distinct thermodynamic state.
+      </div>
+    </div>
+
+    <div id="phaseWrap">
+      <div class="label">Field Penetration Visualization</div>
+      <canvas id="phaseCanvas" height="200"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     STEP-BY-STEP DEMO
+═══════════════════════════════════════════════════ -->
+<section id="demo">
+  <div class="container fade-in">
+    <div class="label">03 — Step-by-Step Animation</div>
+    <h2>Watch the Transition Happen</h2>
+    <p>Step through the cooling process and observe how the magnetic field and material state change.</p>
+
+    <div class="step-viewer">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="step-canvas-area">
+        <canvas id="stepCanvas" height="320"></canvas>
+      </div>
+      <div class="step-info">
+        <div class="step-title" id="stepTitle">Step 1: Normal State</div>
+        <div class="step-desc" id="stepDesc">At room temperature, YBCO is an ordinary conductor. Magnetic field lines pass freely through the material. Electrons move independently, creating resistance.</div>
+      </div>
+      <div class="controls">
+        <button onclick="stepCtrl.prev()" id="btnPrev">← Prev</button>
+        <button onclick="stepCtrl.playing ? stepCtrl.pause() : stepCtrl.play()" id="btnPlay">▶ Play</button>
+        <button onclick="stepCtrl.next()" id="btnNext">Next →</button>
+        <button onclick="stepCtrl.reset()">↺ Reset</button>
+        <span class="step-counter">Step <span id="stepNum">1</span> / <span id="stepTotal">5</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     TEMPERATURE EXPLORER
+═══════════════════════════════════════════════════ -->
+<section id="temperature">
+  <div class="container fade-in">
+    <div class="label">04 — Interactive Explorer</div>
+    <h2>Drag the Temperature</h2>
+    <p>Adjust the temperature slider and watch how the magnetic field behaves inside the superconductor.</p>
+
+    <div class="slider-section">
+      <div class="slider-row">
+        <span class="slider-label">Temperature:</span>
+        <input type="range" id="tempSlider" min="0" max="300" value="300" oninput="updateSliderViz()">
+        <span class="temp-readout" id="sliderTempLabel" style="color:var(--warning)">300 K</span>
+      </div>
+      <canvas id="sliderCanvas" height="260"></canvas>
+      <div style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;">
+        <div class="callout tip" style="flex:1; margin:0;">
+          <span class="callout-icon">💡</span>
+          <div id="sliderInfo">YBCO (a common high-temperature superconductor) has T<sub>c</sub> ≈ 93 K. Try dragging below 93 K to see the Meissner effect activate.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     PHASE DIAGRAM
+═══════════════════════════════════════════════════ -->
+<section id="phase">
+  <div class="container fade-in">
+    <div class="label">05 — Phase Diagram</div>
+    <h2>Type I vs Type II Superconductors</h2>
+    <p>
+      Not all superconductors behave the same. There are two types, defined by how they respond
+      to increasing magnetic field strength.
+    </p>
+
+    <canvas id="typesCanvas" height="320" style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; display:block;"></canvas>
+
+    <div class="two-col" style="margin-top:24px;">
+      <div class="card">
+        <div class="label" style="color:var(--accent)">Type I</div>
+        <h3>Complete Expulsion</h3>
+        <p>Below H<sub>c</sub>: full Meissner state — perfect diamagnet, B=0 inside.</p>
+        <p>Above H<sub>c</sub>: abrupt transition to normal state. No intermediate.</p>
+        <p><strong>Examples:</strong> Lead, Mercury, Aluminum, Tin.</p>
+      </div>
+      <div class="card">
+        <div class="label" style="color:var(--accent2)">Type II</div>
+        <h3>Mixed State (Vortex Phase)</h3>
+        <p>Between H<sub>c1</sub> and H<sub>c2</sub>: field penetrates via quantized <strong>vortex tubes</strong> — but current still flows without resistance.</p>
+        <p><strong>Examples:</strong> YBCO, Niobium, MgB₂ — used in real applications.</p>
+      </div>
+    </div>
+
+    <div class="callout fact">
+      <span class="callout-icon">🔬</span>
+      <div><strong>Flux Pinning:</strong> In Type II superconductors, impurities and defects can "pin" vortices in place. This allows levitation at multiple angles, including the famous locked-in-place demonstration where a superconductor hovers frozen in position.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     TAKEAWAYS
+═══════════════════════════════════════════════════ -->
+<section id="takeaways">
+  <div class="container fade-in">
+    <div class="label">06 — Key Takeaways</div>
+    <h2>What You Should Remember</h2>
+
+    <div class="takeaway-grid">
+      <div class="takeaway-card">
+        <div class="takeaway-icon">🌡️</div>
+        <div class="takeaway-text">
+          <strong>Critical Temperature T<sub>c</sub></strong>
+          The exact threshold below which a material becomes superconducting. Varies by material (4 K for mercury, 93 K for YBCO).
+        </div>
+      </div>
+      <div class="takeaway-card">
+        <div class="takeaway-icon">🧲</div>
+        <div class="takeaway-text">
+          <strong>Perfect Diamagnetism</strong>
+          Superconductors have magnetic susceptibility χ = −1. They perfectly repel external B fields from their interior.
+        </div>
+      </div>
+      <div class="takeaway-card">
+        <div class="takeaway-icon">⚡</div>
+        <div class="takeaway-text">
+          <strong>Surface Currents</strong>
+          Persistent currents spontaneously form on the surface to generate an opposing field — they require no energy source.
+        </div>
+      </div>
+      <div class="takeaway-card">
+        <div class="takeaway-icon">👫</div>
+        <div class="takeaway-text">
+          <strong>Cooper Pairs (BCS)</strong>
+          Electrons pair via phonon interaction. Pairs condense into a macroscopic quantum state — the origin of zero resistance.
+        </div>
+      </div>
+      <div class="takeaway-card">
+        <div class="takeaway-icon">🔄</div>
+        <div class="takeaway-text">
+          <strong>Thermodynamic State</strong>
+          Unlike Lenz's law, the Meissner effect works even if the field was applied before cooling — proving it's a true quantum phase transition.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     QUIZ
+═══════════════════════════════════════════════════ -->
+<section id="quiz">
+  <div class="container fade-in">
+    <div class="label">07 — Test Yourself</div>
+    <h2>Quick Check</h2>
+
+    <div class="quiz-card" id="q1">
+      <div class="quiz-q">1. A superconductor is cooled inside a magnetic field below T<sub>c</sub>. What happens to the field inside the material?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q1',false)">A) The field remains — it was already there when cooling began</button>
+        <button class="quiz-opt" onclick="answer(this,'q1',true)">B) The field is expelled — surface currents push it out</button>
+        <button class="quiz-opt" onclick="answer(this,'q1',false)">C) The field doubles due to quantum amplification</button>
+        <button class="quiz-opt" onclick="answer(this,'q1',false)">D) The field direction reverses</button>
+      </div>
+      <div class="quiz-feedback" id="q1-fb"></div>
+    </div>
+
+    <div class="quiz-card" id="q2" style="margin-top:16px;">
+      <div class="quiz-q">2. What distinguishes the Meissner effect from a perfect conductor obeying Lenz's law?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q2',false)">A) Perfect conductors also expel fields regardless of when the field is applied</button>
+        <button class="quiz-opt" onclick="answer(this,'q2',false)">B) Perfect conductors can levitate much heavier objects</button>
+        <button class="quiz-opt" onclick="answer(this,'q2',true)">C) The Meissner effect expels flux even if the field was present before cooling</button>
+        <button class="quiz-opt" onclick="answer(this,'q2',false)">D) Perfect conductors require no surface currents</button>
+      </div>
+      <div class="quiz-feedback" id="q2-fb"></div>
+    </div>
+
+    <div class="quiz-card" id="q3" style="margin-top:16px;">
+      <div class="quiz-q">3. Which type of superconductor is used in most practical applications like MRI machines and maglev trains?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q3',false)">A) Type I — because it has perfect field expulsion</button>
+        <button class="quiz-opt" onclick="answer(this,'q3',true)">B) Type II — because it can withstand higher magnetic fields and often has higher T<sub>c</sub></button>
+        <button class="quiz-opt" onclick="answer(this,'q3',false)">C) Type III — the recently discovered room-temperature superconductor</button>
+        <button class="quiz-opt" onclick="answer(this,'q3',false)">D) Both types equally, depending on field strength needed</button>
+      </div>
+      <div class="quiz-feedback" id="q3-fb"></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>The Meissner Effect · Quantum Physics Learning Document</p>
+    <p style="font-size:0.78rem; margin-top:6px; color:#3a4a6a;">Discovered 1933 by Walther Meissner & Robert Ochsenfeld · BCS Theory 1957 · Nobel Prize in Physics 1972</p>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════ -->
+<script>
+// ─── Utilities ───────────────────────────────────────────
+const TAU = Math.PI * 2;
+function lerp(a,b,t){ return a + (b-a)*t; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function hsl(h,s,l,a=1){ return `hsla(${h},${s}%,${l}%,${a})`; }
+
+// ─── Hero Canvas ─────────────────────────────────────────
+const heroCanvas = document.getElementById('heroCanvas');
+const heroCtx    = heroCanvas.getContext('2d');
+let heroTemp = 300;
+let heroAnimT = 0;
+let heroDir = -1; // cooling direction
+
+function resizeHero(){
+  heroCanvas.width  = heroCanvas.offsetWidth * devicePixelRatio;
+  heroCanvas.height = heroCanvas.offsetHeight * devicePixelRatio;
+  heroCtx.scale(devicePixelRatio, devicePixelRatio);
+}
+resizeHero();
+
+function drawHero(){
+  const W = heroCanvas.offsetWidth;
+  const H = heroCanvas.offsetHeight;
+  heroCtx.clearRect(0,0,W,H);
+
+  const isSC = heroTemp < 93;
+  const t = clamp((93 - heroTemp) / 93, 0, 1); // 0=normal, 1=superconducting
+
+  // Background gradient
+  const bg = heroCtx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0, `rgba(13,17,23,1)`);
+  bg.addColorStop(1, `rgba(7,9,15,1)`);
+  heroCtx.fillStyle = bg;
+  heroCtx.fillRect(0,0,W,H);
+
+  // Magnet at bottom
+  const mW = 120, mH = 30;
+  const mX = W/2 - mW/2, mY = H - 50;
+  const mGrad = heroCtx.createLinearGradient(mX, mY, mX+mW, mY+mH);
+  mGrad.addColorStop(0,   '#b91c1c');
+  mGrad.addColorStop(0.5, '#ef4444');
+  mGrad.addColorStop(1,   '#1d4ed8');
+  heroCtx.fillStyle = mGrad;
+  heroCtx.beginPath();
+  heroCtx.roundRect(mX, mY, mW, mH, 6);
+  heroCtx.fill();
+  heroCtx.fillStyle = '#fff';
+  heroCtx.font = 'bold 13px sans-serif';
+  heroCtx.textAlign = 'center';
+  heroCtx.fillText('N', mX + 28, mY+19);
+  heroCtx.fillText('S', mX + mW - 28, mY+19);
+
+  // Superconductor disk — levitate based on t
+  const diskW = 140, diskH = 28;
+  const baseY = H - 100;
+  const levY = baseY - t * 40;
+  const diskX = W/2 - diskW/2;
+
+  // Glow
+  if(isSC || t > 0.05){
+    heroCtx.save();
+    heroCtx.shadowColor = `rgba(56,189,248,${t*0.9})`;
+    heroCtx.shadowBlur  = 30 * t;
+    heroCtx.fillStyle = 'transparent';
+    heroCtx.fillRect(0,0,1,1);
+    heroCtx.restore();
+  }
+
+  // Disk itself
+  const diskColor1 = isSC ? '#1e3a5f' : '#2d3748';
+  const diskColor2 = isSC ? '#38bdf8' : '#718096';
+  const dGrad = heroCtx.createLinearGradient(diskX, levY, diskX+diskW, levY+diskH);
+  dGrad.addColorStop(0, diskColor1);
+  dGrad.addColorStop(1, diskColor2);
+  heroCtx.fillStyle = dGrad;
+  heroCtx.beginPath();
+  heroCtx.roundRect(diskX, levY, diskW, diskH, 8);
+  heroCtx.fill();
+
+  // Disk glow outline
+  if(t > 0.05){
+    heroCtx.strokeStyle = `rgba(56,189,248,${t*0.8})`;
+    heroCtx.lineWidth = 1.5;
+    heroCtx.stroke();
+  }
+
+  heroCtx.fillStyle = `rgba(200,230,255,${0.4 + t*0.5})`;
+  heroCtx.font = `${10 + t*3}px 'Fira Code', monospace`;
+  heroCtx.textAlign = 'center';
+  heroCtx.fillText('YBCO Superconductor', W/2, levY + 17);
+
+  // Magnetic field lines
+  const numLines = 8;
+  for(let i=0; i<numLines; i++){
+    const xFrac = (i+0.5)/numLines;
+    const xPos  = mX + xFrac * mW;
+    const fieldReach = H - mY - 20;
+    const repelY = levY + diskH;
+
+    heroCtx.beginPath();
+    heroCtx.strokeStyle = `rgba(239,68,68,${0.4 + (1-t)*0.4})`;
+    heroCtx.lineWidth = 1.2;
+    heroCtx.setLineDash([4,3]);
+
+    if(!isSC || t < 0.1){
+      // Lines pass through disk
+      heroCtx.moveTo(xPos, mY);
+      heroCtx.lineTo(xPos, mY - fieldReach);
+    } else {
+      // Lines curve around disk
+      const xDev = (xFrac - 0.5) * diskW * 2.2;
+      const cpy  = levY - 20 - t * 15;
+      heroCtx.moveTo(xPos, mY);
+      heroCtx.quadraticCurveTo(xPos + xDev * 0.1, cpy, xPos + xDev, mY - fieldReach);
+    }
+    heroCtx.stroke();
+  }
+  heroCtx.setLineDash([]);
+
+  // Temp gauge
+  const gaugeX = 20, gaugeY = 20, gaugeH = H - 60;
+  heroCtx.fillStyle = 'rgba(30,40,60,0.6)';
+  heroCtx.fillRect(gaugeX, gaugeY, 16, gaugeH);
+  const fillH = (heroTemp/300) * gaugeH;
+  const tempGrad = heroCtx.createLinearGradient(0, gaugeY+gaugeH-fillH, 0, gaugeY+gaugeH);
+  tempGrad.addColorStop(0, '#818cf8');
+  tempGrad.addColorStop(0.4, '#38bdf8');
+  tempGrad.addColorStop(1, '#ef4444');
+  heroCtx.fillStyle = tempGrad;
+  heroCtx.fillRect(gaugeX, gaugeY+gaugeH-fillH, 16, fillH);
+
+  // Tc marker
+  const tcY = gaugeY + gaugeH - (93/300)*gaugeH;
+  heroCtx.strokeStyle = '#fbbf24';
+  heroCtx.lineWidth = 1.5;
+  heroCtx.beginPath();
+  heroCtx.moveTo(gaugeX-4, tcY);
+  heroCtx.lineTo(gaugeX+20, tcY);
+  heroCtx.stroke();
+  heroCtx.fillStyle = '#fbbf24';
+  heroCtx.font = '9px sans-serif';
+  heroCtx.textAlign = 'left';
+  heroCtx.fillText('Tc', gaugeX+22, tcY+3);
+
+  // Temperature label
+  document.getElementById('heroTempVal').textContent = Math.round(heroTemp) + ' K';
+  const stateEl = document.getElementById('heroStateLabel');
+  if(heroTemp < 93){
+    stateEl.textContent = '✦ Superconducting (Meissner effect active)';
+    stateEl.style.color = 'var(--accent)';
+  } else {
+    stateEl.textContent = 'Normal conductor';
+    stateEl.style.color = 'var(--warning)';
+  }
+}
+
+// Auto-animate hero temperature cycling
+function heroLoop(){
+  heroTemp += heroDir * 0.6;
+  if(heroTemp <= 20)  { heroDir = +1; }
+  if(heroTemp >= 300) { heroDir = -1; }
+  drawHero();
+  requestAnimationFrame(heroLoop);
+}
+heroLoop();
+
+// ─── Phase canvas (field penetration) ───────────────────
+const phaseCanvas = document.getElementById('phaseCanvas');
+const phaseCtx    = phaseCanvas.getContext('2d');
+
+function resizePhase(){
+  phaseCanvas.width  = phaseCanvas.offsetWidth * devicePixelRatio;
+  phaseCanvas.height = phaseCanvas.offsetHeight * devicePixelRatio;
+  phaseCtx.scale(devicePixelRatio, devicePixelRatio);
+}
+resizePhase();
+
+let phaseAnimRunning = false;
+function drawPenetration(){
+  const W = phaseCanvas.offsetWidth;
+  const H = phaseCanvas.offsetHeight;
+  phaseCtx.clearRect(0,0,W,H);
+
+  const mid = W/2;
+  const labelH = 20;
+  const padV = 30;
+
+  // Background
+  phaseCtx.fillStyle = '#0d1117';
+  phaseCtx.fillRect(0,0,W,H);
+
+  // Labels
+  phaseCtx.fillStyle = '#6a85b0';
+  phaseCtx.font = '11px sans-serif';
+  phaseCtx.textAlign = 'center';
+  phaseCtx.fillText('Normal Conductor', mid/2, labelH);
+  phaseCtx.fillText('Superconductor', mid + mid/2, labelH);
+
+  // Divider
+  phaseCtx.strokeStyle = '#2e3250';
+  phaseCtx.lineWidth = 1;
+  phaseCtx.beginPath();
+  phaseCtx.moveTo(mid, 0);
+  phaseCtx.lineTo(mid, H);
+  phaseCtx.stroke();
+
+  // Draw field lines — normal side: straight through
+  const lineCount = 6;
+  for(let i=0; i<lineCount; i++){
+    const x = (mid/lineCount) * (i+0.5);
+    const col = `rgba(239,68,68,0.65)`;
+    phaseCtx.strokeStyle = col;
+    phaseCtx.lineWidth = 1.5;
+    phaseCtx.setLineDash([6,4]);
+    phaseCtx.beginPath();
+    phaseCtx.moveTo(x, padV);
+    phaseCtx.lineTo(x, H-padV);
+    phaseCtx.stroke();
+    // Arrows
+    phaseCtx.setLineDash([]);
+    phaseCtx.fillStyle = col;
+    for(let ay = padV+20; ay < H-padV-10; ay += 30){
+      phaseCtx.beginPath();
+      phaseCtx.moveTo(x, ay);
+      phaseCtx.lineTo(x-4, ay-7);
+      phaseCtx.lineTo(x+4, ay-7);
+      phaseCtx.closePath();
+      phaseCtx.fill();
+    }
+  }
+
+  // Superconductor side: lines curve around and skip interior
+  const scX = mid + 20;
+  const scW = mid - 60;
+  const scY = H*0.25, scH = H*0.5;
+
+  // SC material box
+  const scGrad = phaseCtx.createLinearGradient(scX, scY, scX+scW, scY+scH);
+  scGrad.addColorStop(0, 'rgba(30,58,95,0.9)');
+  scGrad.addColorStop(1, 'rgba(17,34,64,0.9)');
+  phaseCtx.fillStyle = scGrad;
+  phaseCtx.strokeStyle = 'rgba(56,189,248,0.5)';
+  phaseCtx.lineWidth = 1.5;
+  phaseCtx.setLineDash([]);
+  phaseCtx.beginPath();
+  phaseCtx.roundRect(scX, scY, scW, scH, 8);
+  phaseCtx.fill();
+  phaseCtx.stroke();
+
+  phaseCtx.fillStyle = 'rgba(56,189,248,0.7)';
+  phaseCtx.font = '11px sans-serif';
+  phaseCtx.textAlign = 'center';
+  phaseCtx.fillText('B = 0 inside', scX+scW/2, H/2+4);
+
+  // Surface currents label
+  phaseCtx.fillStyle = 'rgba(129,140,248,0.8)';
+  phaseCtx.font = '10px sans-serif';
+  phaseCtx.fillText('↺ surface currents', scX+scW/2, scY+15);
+
+  // Lines curving around SC
+  for(let i=0; i<lineCount; i++){
+    const x = mid + (mid/lineCount)*(i+0.5);
+    phaseCtx.strokeStyle = `rgba(239,68,68,0.65)`;
+    phaseCtx.lineWidth = 1.5;
+    phaseCtx.setLineDash([6,4]);
+    phaseCtx.beginPath();
+    if(x >= scX && x <= scX+scW){
+      // Curve around
+      const side = (x < scX+scW/2) ? -1 : 1;
+      const deflectX = scX + (side < 0 ? -18 : scW+18);
+      phaseCtx.moveTo(x, padV);
+      phaseCtx.bezierCurveTo(x, scY-5, deflectX, scY-5, deflectX, H/2);
+      phaseCtx.bezierCurveTo(deflectX, scY+scH+5, x, scY+scH+5, x, H-padV);
+    } else {
+      phaseCtx.moveTo(x, padV);
+      phaseCtx.lineTo(x, H-padV);
+    }
+    phaseCtx.stroke();
+  }
+  phaseCtx.setLineDash([]);
+}
+
+const phaseObs = new IntersectionObserver(entries => {
+  if(entries[0].isIntersecting){ drawPenetration(); }
+});
+phaseObs.observe(phaseCanvas);
+setTimeout(drawPenetration, 200);
+
+// ─── Step Controller ─────────────────────────────────────
+const steps = [
+  {
+    title: 'Step 1: Normal State (T > Tc)',
+    desc:  'YBCO is at room temperature (~300 K). It behaves like any conductor. Magnetic field lines pass freely through the material. Electrons scatter randomly, producing electrical resistance.',
+    temp:  300, superState: 0, levitation: 0, fieldMode: 'through'
+  },
+  {
+    title: 'Step 2: Cooling Begins',
+    desc:  'Temperature drops toward the critical temperature (T_c ≈ 93 K for YBCO). The material is still normal. Thermal agitation decreases — atoms vibrate less intensely.',
+    temp:  150, superState: 0, levitation: 0, fieldMode: 'through'
+  },
+  {
+    title: 'Step 3: Cooper Pair Formation',
+    desc:  'Near T_c, electrons begin pairing into Cooper pairs via lattice phonon interactions. These pairs are quantum-entangled and obey Bose–Einstein statistics. The transition begins.',
+    temp:  96, superState: 0.3, levitation: 0.1, fieldMode: 'forming'
+  },
+  {
+    title: 'Step 4: Meissner Effect Activates (T < Tc)',
+    desc:  'Below T_c, all Cooper pairs condense into a single macroscopic quantum state. Surface currents spontaneously appear and generate an opposing magnetic field — expelling all flux from the interior!',
+    temp:  70, superState: 1, levitation: 0.8, fieldMode: 'expelled'
+  },
+  {
+    title: 'Step 5: Full Levitation',
+    desc:  'The superconductor is now in full Meissner state. B = 0 inside. The expelled field lines create a repulsive pressure against the magnet below, perfectly balancing gravity. Stable levitation!',
+    temp:  30, superState: 1, levitation: 1, fieldMode: 'expelled'
+  }
+];
+
+const stepCanvas = document.getElementById('stepCanvas');
+const stepCtx    = stepCanvas.getContext('2d');
+let currentStep  = 0;
+let playTimer    = null;
+let isPlaying    = false;
+
+function resizeStep(){
+  stepCanvas.width  = stepCanvas.offsetWidth * devicePixelRatio;
+  stepCanvas.height = stepCanvas.offsetHeight * devicePixelRatio;
+  stepCtx.scale(devicePixelRatio, devicePixelRatio);
+}
+resizeStep();
+
+function drawStep(idx){
+  const s = steps[idx];
+  const W = stepCanvas.offsetWidth;
+  const H = stepCanvas.offsetHeight;
+  stepCtx.clearRect(0,0,W,H);
+
+  stepCtx.fillStyle = '#0d1117';
+  stepCtx.fillRect(0,0,W,H);
+
+  // Magnet
+  const mW=140, mH=32;
+  const mX=W/2-mW/2, mY=H-55;
+  const mg = stepCtx.createLinearGradient(mX,mY,mX+mW,mY+mH);
+  mg.addColorStop(0,'#991b1b'); mg.addColorStop(0.5,'#ef4444'); mg.addColorStop(1,'#1d4ed8');
+  stepCtx.fillStyle=mg;
+  stepCtx.beginPath(); stepCtx.roundRect(mX,mY,mW,mH,6); stepCtx.fill();
+  stepCtx.fillStyle='#fff'; stepCtx.font='bold 12px sans-serif'; stepCtx.textAlign='center';
+  stepCtx.fillText('N', mX+30, mY+20); stepCtx.fillText('S', mX+mW-30, mY+20);
+
+  // Superconductor
+  const diskW=160, diskH=30;
+  const baseDiskY = H-100;
+  const diskY = baseDiskY - s.levitation*42;
+  const diskX = W/2-diskW/2;
+
+  if(s.superState > 0.5){
+    stepCtx.shadowColor = `rgba(56,189,248,${s.superState*0.7})`;
+    stepCtx.shadowBlur  = 20 * s.superState;
+  }
+
+  const col1 = s.superState > 0.5 ? '#1e3a5f' : '#2d3748';
+  const col2 = s.superState > 0.5 ? '#38bdf8' : '#718096';
+  const dg = stepCtx.createLinearGradient(diskX,diskY,diskX+diskW,diskY+diskH);
+  dg.addColorStop(0,col1); dg.addColorStop(1,col2);
+  stepCtx.fillStyle = dg;
+  stepCtx.beginPath(); stepCtx.roundRect(diskX,diskY,diskW,diskH,8); stepCtx.fill();
+  if(s.superState > 0.5){
+    stepCtx.strokeStyle=`rgba(56,189,248,${s.superState*0.9})`;
+    stepCtx.lineWidth=1.5; stepCtx.stroke();
+  }
+  stepCtx.shadowBlur = 0;
+  stepCtx.fillStyle=`rgba(200,230,255,${0.4+s.superState*0.5})`;
+  stepCtx.font=`${9+s.superState*2}px monospace`;
+  stepCtx.textAlign='center';
+  stepCtx.fillText('YBCO Superconductor', W/2, diskY+18);
+
+  // Cooper pair indicators
+  if(s.superState > 0.1){
+    for(let k=0;k<5;k++){
+      const px = diskX + 20 + k*28;
+      const py = diskY + 8;
+      stepCtx.fillStyle=`rgba(129,140,248,${s.superState*0.8})`;
+      stepCtx.font='10px sans-serif'; stepCtx.textAlign='center';
+      stepCtx.fillText('e⁻e⁻', px, py);
+    }
+  }
+
+  // Field lines
+  const numL = 8;
+  for(let i=0;i<numL;i++){
+    const xf = (i+0.5)/numL;
+    const lx  = mX + xf*mW;
+    stepCtx.strokeStyle=`rgba(239,68,68,0.55)`;
+    stepCtx.lineWidth=1.3;
+    stepCtx.setLineDash([5,4]);
+    stepCtx.beginPath();
+
+    if(s.fieldMode === 'through'){
+      stepCtx.moveTo(lx, mY);
+      stepCtx.lineTo(lx, 30);
+    } else if(s.fieldMode === 'forming'){
+      const partial = s.superState;
+      if(lx < diskX || lx > diskX+diskW){
+        stepCtx.moveTo(lx, mY);
+        stepCtx.lineTo(lx, 30);
+      } else {
+        stepCtx.moveTo(lx, mY);
+        stepCtx.lineTo(lx, diskY + diskH + (1-partial)*(mY-diskY-diskH));
+      }
+    } else {
+      // expelled — curve around
+      const dev = (xf - 0.5) * diskW * 2.8;
+      const cpy = diskY - 18;
+      stepCtx.moveTo(lx, mY);
+      stepCtx.quadraticCurveTo(lx + dev*0.05, cpy, lx + dev, 30);
+    }
+    stepCtx.stroke();
+  }
+  stepCtx.setLineDash([]);
+
+  // Temp indicator
+  const tempColor = s.temp < 93 ? '#38bdf8' : '#fbbf24';
+  stepCtx.fillStyle = tempColor;
+  stepCtx.font = 'bold 15px monospace';
+  stepCtx.textAlign = 'left';
+  stepCtx.fillText(`T = ${s.temp} K`, 20, 32);
+  stepCtx.fillStyle = s.temp < 93 ? '#38bdf8' : '#6b7280';
+  stepCtx.font = '11px sans-serif';
+  stepCtx.fillText(s.temp < 93 ? 'SUPERCONDUCTING' : 'NORMAL STATE', 20, 50);
+
+  // Update UI
+  document.getElementById('stepTitle').textContent = s.title;
+  document.getElementById('stepDesc').textContent  = s.desc;
+  document.getElementById('stepNum').textContent   = idx+1;
+  document.getElementById('stepTotal').textContent = steps.length;
+  document.getElementById('progressFill').style.width = `${(idx/(steps.length-1))*100}%`;
+}
+
+const stepCtrl = {
+  playing: false, timer: null,
+  next(){
+    if(currentStep < steps.length-1){ currentStep++; drawStep(currentStep); }
+    else { this.pause(); }
+  },
+  prev(){
+    if(currentStep > 0){ currentStep--; drawStep(currentStep); }
+  },
+  play(interval=1800){
+    this.playing=true;
+    document.getElementById('btnPlay').textContent = '⏸ Pause';
+    document.getElementById('btnPlay').classList.add('active');
+    this.timer = setInterval(() => {
+      if(currentStep >= steps.length-1){ this.pause(); return; }
+      this.next();
+    }, interval);
+  },
+  pause(){
+    this.playing=false;
+    document.getElementById('btnPlay').textContent = '▶ Play';
+    document.getElementById('btnPlay').classList.remove('active');
+    clearInterval(this.timer);
+  },
+  reset(){
+    this.pause();
+    currentStep=0;
+    drawStep(0);
+  }
+};
+
+drawStep(0);
+
+// ─── Slider / Temperature Explorer ───────────────────────
+const sliderCanvas = document.getElementById('sliderCanvas');
+const sliderCtx    = sliderCanvas.getContext('2d');
+const Tc = 93; // YBCO Tc
+
+function resizeSlider(){
+  sliderCanvas.width  = sliderCanvas.offsetWidth * devicePixelRatio;
+  sliderCanvas.height = sliderCanvas.offsetHeight * devicePixelRatio;
+  sliderCtx.scale(devicePixelRatio, devicePixelRatio);
+}
+resizeSlider();
+
+function updateSliderViz(){
+  const val = parseInt(document.getElementById('tempSlider').value);
+  const lbl = document.getElementById('sliderTempLabel');
+  const info = document.getElementById('sliderInfo');
+  const isSC = val < Tc;
+  lbl.textContent = val + ' K';
+  lbl.style.color = isSC ? 'var(--accent)' : 'var(--warning)';
+
+  if(isSC){
+    const delta = Tc - val;
+    const depth = Math.max(5, 50 - delta*0.4);
+    info.innerHTML = `<strong>Superconducting State</strong> — T = ${val} K is below T<sub>c</sub> = 93 K. 
+    London penetration depth λ<sub>L</sub> ≈ ${Math.round(depth)} nm. 
+    Magnetic field is expelled from the bulk. Cooper pairs are condensed. <em>Levitation active!</em>`;
+  } else {
+    info.innerHTML = `<strong>Normal State</strong> — T = ${val} K is above T<sub>c</sub> = 93 K. 
+    Electrons scatter normally, producing resistance. Magnetic field passes freely through the material. 
+    <em>No levitation.</em>`;
+  }
+
+  drawSliderViz(val);
+}
+
+function drawSliderViz(temp){
+  const W = sliderCanvas.offsetWidth;
+  const H = sliderCanvas.offsetHeight;
+  sliderCtx.clearRect(0,0,W,H);
+
+  sliderCtx.fillStyle='#0d1117'; sliderCtx.fillRect(0,0,W,H);
+
+  const isSC  = temp < Tc;
+  const t     = clamp((Tc - temp) / Tc, 0, 1);
+  const depth = isSC ? clamp(1 - (Tc-temp)/Tc * 1.5, 0.05, 0.5) : 1;
+
+  // Material block
+  const bX=80, bY=40, bW=W-160, bH=H-80;
+  sliderCtx.fillStyle = isSC ? 'rgba(17,34,64,0.9)' : 'rgba(30,30,40,0.9)';
+  sliderCtx.beginPath(); sliderCtx.roundRect(bX,bY,bW,bH,10); sliderCtx.fill();
+  sliderCtx.strokeStyle = isSC ? `rgba(56,189,248,${t*0.8})` : '#2e3250';
+  sliderCtx.lineWidth=1.5; sliderCtx.stroke();
+
+  // Penetration gradient overlay (field entering from edges)
+  if(isSC){
+    const penetW = depth * bW * 0.4;
+    const grad1 = sliderCtx.createLinearGradient(bX,0,bX+penetW,0);
+    grad1.addColorStop(0,'rgba(239,68,68,0.25)');
+    grad1.addColorStop(1,'rgba(239,68,68,0)');
+    sliderCtx.fillStyle=grad1;
+    sliderCtx.beginPath(); sliderCtx.roundRect(bX,bY,penetW,bH,10); sliderCtx.fill();
+
+    const grad2 = sliderCtx.createLinearGradient(bX+bW-penetW,0,bX+bW,0);
+    grad2.addColorStop(0,'rgba(239,68,68,0)');
+    grad2.addColorStop(1,'rgba(239,68,68,0.25)');
+    sliderCtx.fillStyle=grad2;
+    sliderCtx.beginPath(); sliderCtx.roundRect(bX+bW-penetW,bY,penetW,bH,10); sliderCtx.fill();
+  }
+
+  // Field lines
+  const numLines = 10;
+  for(let i=0;i<numLines;i++){
+    const xf = (i+0.5)/numLines;
+    const lx = bX + xf*bW;
+    sliderCtx.strokeStyle='rgba(239,68,68,0.6)';
+    sliderCtx.lineWidth=1.2;
+    sliderCtx.setLineDash([5,4]);
+    sliderCtx.beginPath();
+    if(!isSC){
+      sliderCtx.moveTo(lx, 10);
+      sliderCtx.lineTo(lx, H-10);
+    } else {
+      const penetrate = depth * bH * 0.38;
+      sliderCtx.moveTo(lx, 10);
+      sliderCtx.lineTo(lx, bY + penetrate);
+      sliderCtx.moveTo(lx, bY+bH-penetrate);
+      sliderCtx.lineTo(lx, H-10);
+    }
+    sliderCtx.stroke();
+  }
+  sliderCtx.setLineDash([]);
+
+  // B=0 label in center
+  if(isSC && t > 0.3){
+    sliderCtx.fillStyle=`rgba(56,189,248,${t*0.9})`;
+    sliderCtx.font=`bold ${12+t*6}px monospace`;
+    sliderCtx.textAlign='center';
+    sliderCtx.fillText('B = 0', W/2, H/2+4);
+    sliderCtx.font=`${9+t*2}px sans-serif`;
+    sliderCtx.fillStyle=`rgba(56,189,248,${t*0.6})`;
+    sliderCtx.fillText('Meissner State', W/2, H/2+20);
+  }
+
+  // Material label
+  sliderCtx.fillStyle='rgba(200,220,255,0.5)';
+  sliderCtx.font='11px sans-serif';
+  sliderCtx.textAlign='center';
+  sliderCtx.fillText('YBCO Material', W/2, bY+14);
+
+  // Arrows indicating field direction
+  const arrowColor = `rgba(239,68,68,0.8)`;
+  sliderCtx.fillStyle=arrowColor;
+  sliderCtx.font='16px sans-serif';
+  sliderCtx.textAlign='center';
+  sliderCtx.fillText('↓', 30, H/2+6);
+  sliderCtx.fillText('↓', W-30, H/2+6);
+}
+
+updateSliderViz();
+
+// ─── Types Canvas ─────────────────────────────────────────
+const typesCanvas = document.getElementById('typesCanvas');
+const typesCtx    = typesCanvas.getContext('2d');
+
+function resizeTypes(){
+  typesCanvas.width  = typesCanvas.offsetWidth * devicePixelRatio;
+  typesCanvas.height = typesCanvas.offsetHeight * devicePixelRatio;
+  typesCtx.scale(devicePixelRatio, devicePixelRatio);
+}
+resizeTypes();
+
+function drawTypes(){
+  const W = typesCanvas.offsetWidth;
+  const H = typesCanvas.offsetHeight;
+  typesCtx.clearRect(0,0,W,H);
+
+  typesCtx.fillStyle='#0d1117'; typesCtx.fillRect(0,0,W,H);
+
+  const pad=60, topPad=40, botPad=50;
+  const plotW=W-pad*2, plotH=H-topPad-botPad;
+  const ox=pad, oy=topPad+plotH;
+
+  // Axes
+  typesCtx.strokeStyle='#3a4a6a'; typesCtx.lineWidth=1.5;
+  typesCtx.beginPath();
+  typesCtx.moveTo(ox,topPad); typesCtx.lineTo(ox,oy); typesCtx.lineTo(ox+plotW,oy);
+  typesCtx.stroke();
+
+  // Axis labels
+  typesCtx.fillStyle='#6a85b0'; typesCtx.font='11px sans-serif';
+  typesCtx.textAlign='center';
+  typesCtx.fillText('Applied Magnetic Field (H)', ox+plotW/2, H-10);
+  typesCtx.save();
+  typesCtx.translate(15, topPad+plotH/2);
+  typesCtx.rotate(-Math.PI/2);
+  typesCtx.fillText('Magnetization (−M)', 0, 0);
+  typesCtx.restore();
+
+  // ─ Type I curve ─
+  const hc1_x  = ox + plotW * 0.32;
+  const hc_t1  = 0.90;
+
+  typesCtx.strokeStyle='#38bdf8'; typesCtx.lineWidth=2.5;
+  typesCtx.beginPath();
+  typesCtx.moveTo(ox, oy);
+  typesCtx.lineTo(hc1_x, oy - plotH*hc_t1);
+  typesCtx.stroke();
+  // Drop to zero
+  typesCtx.beginPath();
+  typesCtx.moveTo(hc1_x, oy - plotH*hc_t1);
+  typesCtx.lineTo(hc1_x, oy);
+  typesCtx.strokeStyle='rgba(56,189,248,0.5)'; typesCtx.lineWidth=1.5; typesCtx.setLineDash([4,3]);
+  typesCtx.stroke(); typesCtx.setLineDash([]);
+  // Label
+  typesCtx.fillStyle='#38bdf8'; typesCtx.font='bold 12px sans-serif'; typesCtx.textAlign='center';
+  typesCtx.fillText('Type I', ox+plotW*0.1, oy-plotH*0.5);
+  typesCtx.fillStyle='#6a85b0'; typesCtx.font='10px sans-serif';
+  typesCtx.fillText('Hc', hc1_x, oy+16);
+
+  // ─ Type II curve ─
+  const hc2_x  = ox + plotW * 0.52;
+  const hc3_x  = ox + plotW * 0.88;
+  const hc_t2  = 0.85;
+
+  typesCtx.strokeStyle='#818cf8'; typesCtx.lineWidth=2.5;
+  typesCtx.beginPath();
+  typesCtx.moveTo(ox, oy);
+  typesCtx.lineTo(hc2_x, oy - plotH*hc_t2);
+  typesCtx.stroke();
+  // Mixed state — slope down
+  typesCtx.strokeStyle='rgba(129,140,248,0.7)'; typesCtx.lineWidth=2;
+  typesCtx.beginPath();
+  typesCtx.moveTo(hc2_x, oy - plotH*hc_t2);
+  typesCtx.lineTo(hc3_x, oy);
+  typesCtx.stroke();
+  // Labels
+  typesCtx.fillStyle='#818cf8'; typesCtx.font='bold 12px sans-serif'; typesCtx.textAlign='center';
+  typesCtx.fillText('Type II', ox+plotW*0.68, oy-plotH*0.52);
+  typesCtx.fillStyle='#6a85b0'; typesCtx.font='10px sans-serif';
+  typesCtx.fillText('Hc1', hc2_x, oy+16);
+  typesCtx.fillText('Hc2', hc3_x, oy+16);
+
+  // Region labels
+  typesCtx.fillStyle='rgba(56,189,248,0.5)'; typesCtx.font='10px sans-serif';
+  typesCtx.textAlign='center';
+  typesCtx.fillText('Perfect', ox+plotW*0.25, oy-plotH*0.25);
+  typesCtx.fillText('Meissner', ox+plotW*0.25, oy-plotH*0.25+14);
+
+  typesCtx.fillStyle='rgba(129,140,248,0.4)';
+  typesCtx.fillText('Mixed / Vortex', ox+plotW*0.67, oy-plotH*0.2);
+  typesCtx.fillText('State', ox+plotW*0.67, oy-plotH*0.2+14);
+
+  // Title
+  typesCtx.fillStyle='var(--text)'; typesCtx.font='bold 13px sans-serif';
+  typesCtx.textAlign='center';
+  typesCtx.fillStyle='rgba(200,220,255,0.7)';
+  typesCtx.fillText('Meissner Effect: Type I vs Type II Superconductors', W/2, 22);
+}
+
+const typesObs = new IntersectionObserver(e => { if(e[0].isIntersecting) drawTypes(); });
+typesObs.observe(typesCanvas);
+setTimeout(drawTypes, 300);
+
+// ─── Quiz ─────────────────────────────────────────────────
+const correctAnswers = {
+  'q1': 'B) The field is expelled — surface currents push it out',
+  'q2': 'C) The Meissner effect expels flux even if the field was present before cooling',
+  'q3': 'B) Type II — because it can withstand higher magnetic fields and often has higher T<sub>c</sub>'
+};
+
+const feedbacks = {
+  'q1': { ok: 'Correct! This is the hallmark of the Meissner effect — unlike a perfect conductor (which only preserves zero field if cooled in zero field), a superconductor actively expels flux regardless of when the field was applied.', bad: 'Incorrect. A perfect conductor might preserve the field (Lenz\'s law), but a true superconductor actively expels it via the Meissner effect.' },
+  'q2': { ok: 'Exactly right! This is the key experimental proof that superconductivity is a true thermodynamic phase, not just "perfect conductivity." The expelled flux upon cooling in an existing field cannot be explained by Lenz\'s law alone.', bad: 'Not quite. The defining distinction is that the Meissner effect works even when the magnetic field was applied before the material was cooled — something Lenz\'s law cannot predict.' },
+  'q3': { ok: 'Correct! Type II superconductors tolerate much higher magnetic fields (up to Hc2) and often have higher critical temperatures, making them practical for real-world applications. Type I superconductors quench at low fields.', bad: 'Incorrect. Type I superconductors quench (revert to normal) at relatively low field strengths, making them unsuitable for the high-field environments of MRI and maglev.' }
+};
+
+function answer(btn, qid, correct){
+  const container = document.getElementById(qid);
+  if(container.querySelector('.correct') || container.querySelector('.wrong')) return;
+
+  const opts = container.querySelectorAll('.quiz-opt');
+  opts.forEach(o => {
+    if(o === btn){
+      o.classList.add(correct ? 'correct' : 'wrong');
+    }
+    if(!correct && o.textContent.trim().startsWith(correctAnswers[qid].split(' — ')[0]) ){
+      // highlight correct
+    }
+    o.style.pointerEvents='none';
+  });
+
+  const fb = document.getElementById(qid+'-fb');
+  fb.textContent = feedbacks[qid][correct?'ok':'bad'];
+  fb.className = `quiz-feedback show ${correct?'ok':'bad'}`;
+}
+
+// ─── Scroll fade-in ───────────────────────────────────────
+const fadeEls = document.querySelectorAll('.fade-in');
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+fadeEls.forEach(el => obs.observe(el));
+
+// ─── Resize ───────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  resizeHero(); resizeStep(); resizeSlider(); resizePhase(); resizeTypes();
+  drawStep(currentStep);
+  updateSliderViz();
+  drawPenetration();
+  drawTypes();
+});
+</script>
+</body>
+</html>

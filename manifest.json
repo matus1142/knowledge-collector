@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-06-14T10:24:05.337434Z",
+  "stats": {
+    "total_files": 2,
+    "total_folders": 2,
+    "html": 1,
+    "markdown": 1,
+    "pdf": 0
+  },
+  "tree": {
+    "name": "Root",
+    "path": "",
+    "files": [
+      {
+        "name": "README.md",
+        "path": "README.md",
+        "type": "markdown"
+      }
+    ],
+    "children": [
+      {
+        "name": "Physic-topic",
+        "path": "Physic-topic",
+        "files": [
+          {
+            "name": "meissner-effect.html",
+            "path": "Physic-topic/meissner-effect.html",
+            "type": "html"
+          }
+        ],
+        "children": []
+      }
+    ]
+  }
+}
