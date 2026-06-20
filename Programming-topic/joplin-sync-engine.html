@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sync Engine — How It Works</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Thai:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --border: #252a38;
+    --accent: #4fffb0;
+    --accent2: #ff6b6b;
+    --accent3: #ffd93d;
+    --accent4: #6bceff;
+    --text: #c8d0e0;
+    --muted: #5a6278;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Noto Sans Thai', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* grid noise overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(79,255,176,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,255,176,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ── header ── */
+  header { text-align: center; padding: 48px 0 56px; }
+  header .badge {
+    display: inline-block;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent); border: 1px solid var(--accent);
+    padding: 3px 10px; border-radius: 20px; letter-spacing: .1em;
+    margin-bottom: 16px;
+  }
+  header h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 700; line-height: 1.2;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--muted); margin-top: 12px; font-size: 15px; }
+
+  /* ── section title ── */
+  .section { margin-bottom: 56px; }
+  .section-title {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 20px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: #000;
+    font-size: 10px; font-weight: 600;
+    display: grid; place-items: center; flex-shrink: 0;
+  }
+
+  /* ── card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h3 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .card p  { font-size: 14px; color: var(--text); }
+
+  /* ── flow diagram ── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    overflow-x: auto;
+  }
+
+  .flow-row {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 8px;
+  }
+  .flow-row:last-child { margin-bottom: 0; }
+
+  .node {
+    background: #1a1f2e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: var(--mono); font-size: 12px;
+    white-space: nowrap;
+    position: relative;
+  }
+  .node.device  { border-color: var(--accent4); color: var(--accent4); }
+  .node.remote  { border-color: var(--accent); color: var(--accent); }
+  .node.db      { border-color: var(--accent3); color: var(--accent3); }
+  .node.conflict{ border-color: var(--accent2); color: var(--accent2); }
+  .node.action  { border-color: #8b8fff; color: #8b8fff; }
+
+  .arrow {
+    display: flex; align-items: center; padding: 0 4px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    flex-direction: column; gap: 1px;
+  }
+  .arrow .line { width: 36px; height: 1px; background: var(--muted); }
+  .arrow .label { font-size: 9px; white-space: nowrap; }
+  .arrow-head { color: var(--muted); }
+
+  /* ── big diagram (SVG-style via CSS) ── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    position: relative;
+  }
+
+  .arch-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; margin-bottom: 24px;
+  }
+  .arch-row.center { justify-content: center; }
+
+  .box {
+    background: #1a1f2e;
+    border-radius: 10px;
+    padding: 14px 16px;
+    flex: 1; min-width: 140px;
+    text-align: center;
+  }
+  .box .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+  .box .label { font-family: var(--mono); font-size: 12px; }
+  .box .sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .box.deviceA { border: 1.5px solid var(--accent4); }
+  .box.deviceB { border: 1.5px solid var(--accent4); }
+  .box.remote  { border: 1.5px solid var(--accent); }
+  .box.delta   { border: 1.5px solid var(--accent3); }
+  .box.db-box  { border: 1.5px solid var(--accent3); background: #1c1a0f; }
+
+  .connector-row {
+    display: flex; justify-content: space-around;
+    margin: -8px 0 16px;
+    position: relative;
+  }
+  .v-line {
+    width: 2px; height: 28px;
+    background: linear-gradient(to bottom, var(--border), var(--accent));
+    margin: 0 auto;
+  }
+
+  /* ── step list ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    animation: fadeUp .4s ease both;
+  }
+  .step:last-child { border-bottom: none; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-num {
+    width: 32px; height: 32px; flex-shrink: 0;
+    border-radius: 8px; display: grid; place-items: center;
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    border: 1px solid;
+  }
+  .step-num.green { border-color: var(--accent); color: var(--accent); }
+  .step-num.blue  { border-color: var(--accent4); color: var(--accent4); }
+  .step-num.yellow{ border-color: var(--accent3); color: var(--accent3); }
+  .step-num.red   { border-color: var(--accent2); color: var(--accent2); }
+  .step-num.purple{ border-color: #8b8fff; color: #8b8fff; }
+
+  .step-body h4 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .step-body p  { font-size: 13px; color: var(--text); }
+
+  code {
+    font-family: var(--mono); font-size: 12px;
+    background: #1e2330; padding: 1px 6px; border-radius: 4px;
+    color: var(--accent3);
+  }
+
+  /* ── scenario tabs ── */
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .tab {
+    padding: 7px 16px; border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .05em;
+    cursor: pointer; border: 1px solid var(--border);
+    color: var(--muted); background: transparent;
+    transition: all .2s;
+  }
+  .tab:hover  { border-color: var(--accent); color: var(--accent); }
+  .tab.active { border-color: var(--accent); color: #000; background: var(--accent); }
+
+  .scenario { display: none; }
+  .scenario.active { display: block; }
+
+  /* ── comparison table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent);
+    padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(79,255,176,.03); }
+
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-family: var(--mono); font-size: 10px;
+  }
+  .tag.green  { background: rgba(79,255,176,.15); color: var(--accent); }
+  .tag.yellow { background: rgba(255,217,61,.15); color: var(--accent3); }
+  .tag.red    { background: rgba(255,107,107,.15); color: var(--accent2); }
+  .tag.blue   { background: rgba(107,206,255,.15); color: var(--accent4); }
+
+  /* ── delta diagram ── */
+  .delta-vis {
+    display: grid; grid-template-columns: 1fr 80px 1fr;
+    gap: 12px; align-items: start;
+  }
+  .delta-col { display: flex; flex-direction: column; gap: 6px; }
+  .delta-col-title {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .delta-item {
+    background: #1a1f2e; border-radius: 6px;
+    padding: 6px 10px; font-family: var(--mono); font-size: 11px;
+    border-left: 3px solid;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .delta-item.put    { border-color: var(--accent); }
+  .delta-item.skip   { border-color: var(--muted); opacity: .4; }
+  .delta-item.del    { border-color: var(--accent2); }
+  .delta-middle {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 6px; padding-top: 32px;
+  }
+  .cursor-badge {
+    background: var(--accent3); color: #000;
+    font-family: var(--mono); font-size: 10px;
+    padding: 3px 8px; border-radius: 4px; font-weight: 600;
+  }
+
+  /* ── conflict diagram ── */
+  .conflict-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-bottom: 16px;
+  }
+  .conflict-box {
+    border-radius: 8px; padding: 14px;
+    border: 1px dashed;
+  }
+  .conflict-box.left  { border-color: var(--accent4); }
+  .conflict-box.right { border-color: var(--accent2); }
+  .conflict-box .cname {
+    font-family: var(--mono); font-size: 11px; margin-bottom: 8px;
+  }
+  .conflict-box.left  .cname { color: var(--accent4); }
+  .conflict-box.right .cname { color: var(--accent2); }
+  .md-line { font-size: 12px; color: var(--muted); line-height: 1.8; }
+  .md-line span { color: var(--text); }
+  .md-diff { color: var(--accent3) !important; }
+
+  .conflict-result {
+    background: rgba(255,107,107,.08); border: 1px solid var(--accent2);
+    border-radius: 8px; padding: 14px;
+    font-size: 13px;
+  }
+  .conflict-result strong { color: var(--accent2); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="badge">SYNC ENGINE EXPLAINED</div>
+    <h1>ทำความเข้าใจ<br>Joplin-like Sync</h1>
+    <p>อธิบายการทำงานของ sync_engine.py ทีละขั้นตอน พร้อม diagram</p>
+  </header>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- SECTION 1: OVERVIEW               -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><div class="num">1</div>ภาพรวม Architecture</div>
+
+    <div class="arch-diagram">
+      <!-- Top row: devices -->
+      <div class="arch-row">
+        <div class="box deviceA">
+          <span class="icon">💻</span>
+          <div class="label" style="color:var(--accent4)">deviceA</div>
+          <div class="sub">โน้ต + local DB</div>
+        </div>
+        <div class="box deviceB">
+          <span class="icon">📱</span>
+          <div class="label" style="color:var(--accent4)">deviceB</div>
+          <div class="sub">โน้ต + local DB</div>
+        </div>
+        <div style="flex:1;min-width:100px">
+          <div class="box" style="border:1.5px dashed #333; color: var(--muted); font-family:var(--mono); font-size:11px; padding:10px;">
+            <span class="icon">🆕</span>
+            <div class="label">deviceC</div>
+            <div class="sub">full sync เมื่อเริ่มใหม่</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connectors -->
+      <div style="display:flex; justify-content:space-around; margin: -4px 0 4px;">
+        <div style="flex:1;display:flex;justify-content:center"><div class="v-line"></div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="v-line"></div></div>
+        <div style="flex:1;display:flex;justify-content:center"><div class="v-line" style="background:linear-gradient(to bottom, var(--border), #333)"></div></div>
+      </div>
+
+      <!-- Middle: remote -->
+      <div class="arch-row center">
+        <div class="box remote" style="max-width:220px;">
+          <span class="icon">☁️</span>
+          <div class="label" style="color:var(--accent)">Remote Storage</div>
+          <div class="sub">.md files + delta log</div>
+        </div>
+      </div>
+
+      <!-- Connector down -->
+      <div style="display:flex;justify-content:center;margin:-4px 0 4px;">
+        <div class="v-line" style="background:linear-gradient(to bottom, var(--accent), var(--accent3))"></div>
+      </div>
+
+      <!-- Bottom: delta log -->
+      <div class="arch-row center">
+        <div class="box delta" style="max-width:220px;">
+          <span class="icon">📋</span>
+          <div class="label" style="color:var(--accent3)">Delta Log</div>
+          <div class="sub">บันทึกทุก put/delete + cursor</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+        <div style="font-size:12px; color:var(--muted); text-align:center; font-family:var(--mono);">
+          แต่ละ Device มี Local DB เก็บ: <code>notes</code> · <code>sync_state</code> · <code>cursor</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- SECTION 2: NOTE STRUCTURE          -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><div class="num">2</div>โครงสร้างไฟล์ .md</div>
+
+    <div class="card">
+      <h3>ตัวอย่างไฟล์ note (aaa111.md)</h3>
+      <pre style="background:#0d0f14; padding:16px; border-radius:8px; font-family:var(--mono); font-size:12px; line-height:1.8; margin-top:10px; overflow-x:auto;"><span style="color:#fff"># Shopping List</span>
+
+<span style="color:var(--text)">- eggs
+- milk
+- bread</span>
+
+<span style="color:var(--muted)">←── body จบ, ต่อด้วย metadata ──</span>
+
+<span style="color:var(--accent3)">id: aaa111bbb222ccc333</span>
+<span style="color:var(--accent3)">parent_id: root</span>
+<span style="color:var(--accent3)">created_time: 2025-10-26T06:41:45.027Z</span>
+<span style="color:var(--accent3)">updated_time: 2025-10-28T14:54:37.396Z</span>
+<span style="color:var(--accent3)">deleted_time: 0</span></pre>
+      <p style="margin-top:12px; font-size:13px;">
+        Metadata อยู่ท้ายไฟล์ เป็น "สำเนาที่ serialize" ออกมาจาก Local DB — ใช้สำหรับส่งข้ามอุปกรณ์ผ่าน remote
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px;">
+      <div class="card" style="margin:0;">
+        <h3 style="color:var(--accent3)">🗄 Local DB เก็บอะไร?</h3>
+        <p>· notes (ข้อมูลทั้งหมด)<br>· sync_state (hash ที่ sync ล่าสุด)<br>· cursor (ตำแหน่ง delta ล่าสุด)</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h3 style="color:var(--accent)">☁️ Remote เก็บอะไร?</h3>
+        <p>· .md files (serialize ของ note)<br>· .delta_log.json (log ทุก action)<br>· cursor ต่อเนื่องเป็น integer</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- SECTION 3: 5 SCENARIOS            -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><div class="num">3</div>5 สถานการณ์ Sync</div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('sync')">✅ Sync Complete</button>
+      <button class="tab" onclick="showTab('conflict')">⚠️ Conflict</button>
+      <button class="tab" onclick="showTab('fullsync')">🆕 Full Sync</button>
+      <button class="tab" onclick="showTab('delta')">⚡ Delta Sync</button>
+      <button class="tab" onclick="showTab('delete')">🗑 Delete</button>
+    </div>
+
+    <!-- ── Sync Complete ── -->
+    <div id="tab-sync" class="scenario active">
+      <div class="flow" style="margin-bottom:12px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;">FLOW: SYNC COMPLETE</div>
+        <div class="flow-row">
+          <div class="node device">deviceA</div>
+          <div class="arrow"><div class="line"></div><div class="label">push(note)</div><div class="arrow-head">→</div></div>
+          <div class="node remote">remote/.md</div>
+          <div class="arrow"><div class="line"></div><div class="label">append</div><div class="arrow-head">→</div></div>
+          <div class="node db">delta_log<br>cursor+1</div>
+        </div>
+        <div style="margin:10px 0 10px 60px; color:var(--muted); font-size:12px;">⬇ deviceB เรียก delta_sync()</div>
+        <div class="flow-row">
+          <div class="node device">deviceB</div>
+          <div class="arrow"><div class="line"></div><div class="label">get_delta</div><div class="arrow-head">→</div></div>
+          <div class="node remote">remote</div>
+          <div class="arrow"><div class="line"></div><div class="label">pull .md</div><div class="arrow-head">→</div></div>
+          <div class="node device" style="border-color:var(--accent);color:var(--accent)">deviceB<br>DB ✓</div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num green">1</div><div class="step-body"><h4>deviceA สร้าง/แก้ไข note</h4><p>เขียน <code>.md</code> ลง disk และอัพเดต <code>local.db.json</code></p></div></div>
+        <div class="step"><div class="step-num green">2</div><div class="step-body"><h4>push() ไป remote</h4><p>อัปโหลด <code>.md</code> ไปที่ remote folder และ delta_log บันทึก <code>action: put</code></p></div></div>
+        <div class="step"><div class="step-num green">3</div><div class="step-body"><h4>deviceB เรียก delta_sync()</h4><p>ถาม remote ว่า "มีอะไรใหม่ตั้งแต่ cursor ของฉัน?" ดึงเฉพาะ .md ที่เปลี่ยน</p></div></div>
+        <div class="step"><div class="step-num green">4</div><div class="step-body"><h4>deviceB อัพเดต DB + เลื่อน cursor</h4><p>บันทึก note ลง local DB, อัพเดต <code>sync_state</code> และ set cursor ใหม่</p></div></div>
+      </div>
+    </div>
+
+    <!-- ── Conflict ── -->
+    <div id="tab-conflict" class="scenario">
+      <div class="conflict-grid">
+        <div class="conflict-box left">
+          <div class="cname">📤 deviceA (push แล้ว)</div>
+          <div class="md-line">- eggs<br>- milk<br><span class="md-diff">- bread ← เพิ่ม</span></div>
+          <div style="margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--muted)">updated: 14:55:00Z</div>
+        </div>
+        <div class="conflict-box right">
+          <div class="cname">📱 deviceB (แก้ offline)</div>
+          <div class="md-line">- eggs<br>- milk<br><span class="md-diff">- butter ← เพิ่มต่างกัน</span></div>
+          <div style="margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--muted)">updated: 14:55:30Z</div>
+        </div>
+      </div>
+      <div class="conflict-result">
+        <strong>⚠️ Conflict ถูกตรวจพบเมื่อ:</strong><br>
+        local hash ≠ sync_state hash <code>AND</code> remote updated_time > sync_time<br><br>
+        ผลลัพธ์: deviceB สร้าง <code>_conflicts/</code> โดยมีทั้ง:<br>
+        &nbsp;· <code>aaa111_remote_TIMESTAMP.md</code> (เวอร์ชัน remote)<br>
+        &nbsp;· <code>aaa111_local_TIMESTAMP.md</code> (เวอร์ชัน local)<br><br>
+        ผู้ใช้ต้องเลือกเองว่าจะเก็บเวอร์ชันไหน (เหมือน Joplin จริง)
+      </div>
+      <div class="steps" style="margin-top:16px;">
+        <div class="step"><div class="step-num red">1</div><div class="step-body"><h4>ตรวจสอบ local hash</h4><p>hash ของ note ใน device ≠ hash ที่ sync ครั้งล่าสุด → แสดงว่า local มีการแก้ไข</p></div></div>
+        <div class="step"><div class="step-num red">2</div><div class="step-body"><h4>เปรียบ updated_time</h4><p>remote มี updated_time ใหม่กว่า sync_time → remote ก็ถูกแก้ไขเช่นกัน = CONFLICT</p></div></div>
+        <div class="step"><div class="step-num red">3</div><div class="step-body"><h4>บันทึกทั้ง 2 เวอร์ชัน</h4><p>สร้าง <code>_conflicts/</code> เก็บทั้ง remote copy และ local copy ไว้ให้ผู้ใช้แก้เอง</p></div></div>
+      </div>
+    </div>
+
+    <!-- ── Full Sync ── -->
+    <div id="tab-fullsync" class="scenario">
+      <div class="flow" style="margin-bottom:12px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;">FLOW: NEW DEVICE FULL SYNC</div>
+        <div class="flow-row">
+          <div class="node device">deviceC<br><span style="color:var(--muted);font-size:10px">cursor = None</span></div>
+          <div class="arrow"><div class="line"></div><div class="label">list_files()</div><div class="arrow-head">→</div></div>
+          <div class="node remote">remote<br>(ทุกไฟล์)</div>
+          <div class="arrow"><div class="line"></div><div class="label">pull ALL</div><div class="arrow-head">→</div></div>
+          <div class="node db">local DB<br>+ cursor</div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num blue">1</div><div class="step-body"><h4>ไม่มี cursor → Full Sync</h4><p>device ใหม่ไม่รู้ว่า remote มีอะไรบ้าง ต้องดึงทุก <code>.md</code> ออกมาเลย</p></div></div>
+        <div class="step"><div class="step-num blue">2</div><div class="step-body"><h4>list_files() จาก remote</h4><p>ดึงรายชื่อไฟล์ทั้งหมด loop ผ่านทีละไฟล์</p></div></div>
+        <div class="step"><div class="step-num blue">3</div><div class="step-body"><h4>parse metadata + บันทึก DB</h4><p>แยก body กับ metadata จาก .md แล้ว upsert ลง local DB ทีละตัว</p></div></div>
+        <div class="step"><div class="step-num blue">4</div><div class="step-body"><h4>Set cursor = latest</h4><p>หลัง full sync เสร็จ ตั้ง cursor ให้ชี้ตำแหน่งล่าสุด → ครั้งหน้าใช้ delta sync แทน</p></div></div>
+      </div>
+    </div>
+
+    <!-- ── Delta Sync ── -->
+    <div id="tab-delta" class="scenario">
+      <div class="flow" style="margin-bottom:12px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;">FLOW: DELTA SYNC (cursor = 5)</div>
+        <div class="delta-vis">
+          <div class="delta-col">
+            <div class="delta-col-title">delta_log ทั้งหมด</div>
+            <div class="delta-item skip">cursor 1 · put note_A.md</div>
+            <div class="delta-item skip">cursor 2 · put note_B.md</div>
+            <div class="delta-item skip">cursor 3 · put note_C.md</div>
+            <div class="delta-item skip">cursor 4 · put note_A.md</div>
+            <div class="delta-item skip">cursor 5 · put note_B.md</div>
+            <div class="delta-item put">cursor 6 · put note_D.md ✓</div>
+            <div class="delta-item put">cursor 7 · put note_A.md ✓</div>
+            <div class="delta-item del">cursor 8 · delete note_C.md ✓</div>
+          </div>
+          <div class="delta-middle">
+            <div class="cursor-badge">cursor=5</div>
+            <div style="color:var(--muted);font-size:11px;text-align:center">ดึงแค่<br>&gt; cursor 5</div>
+            <div style="color:var(--accent);font-size:18px;">→</div>
+          </div>
+          <div class="delta-col">
+            <div class="delta-col-title">ส่งให้ deviceB</div>
+            <div class="delta-item put">put note_D.md → pull ✓</div>
+            <div class="delta-item put">put note_A.md → pull ✓</div>
+            <div class="delta-item del">delete note_C → remove ✓</div>
+            <div style="margin-top:12px;padding:8px;background:rgba(79,255,176,.07);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--accent)">
+              cursor ใหม่ = 8<br>ถ่าย 3 รายการ<br>ข้าม 5 รายการ
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num yellow">1</div><div class="step-body"><h4>อ่าน cursor จาก local DB</h4><p>cursor คือตำแหน่งที่ sync ล่าสุด เช่น <code>cursor = 5</code></p></div></div>
+        <div class="step"><div class="step-num yellow">2</div><div class="step-body"><h4>ขอ delta ตั้งแต่ cursor</h4><p>remote ส่งเฉพาะ entries ที่ <code>cursor > 5</code> ลดปริมาณ transfer อย่างมาก</p></div></div>
+        <div class="step"><div class="step-num yellow">3</div><div class="step-body"><h4>Process แต่ละ delta</h4><p><code>put</code> → pull .md มาอัพเดต &nbsp;|&nbsp; <code>delete</code> → ลบออกจาก DB + disk</p></div></div>
+        <div class="step"><div class="step-num yellow">4</div><div class="step-body"><h4>เลื่อน cursor ไปหน้า</h4><p>set cursor ใหม่เป็น cursor ล่าสุดของ remote พร้อม sync ครั้งหน้า</p></div></div>
+      </div>
+    </div>
+
+    <!-- ── Delete ── -->
+    <div id="tab-delete" class="scenario">
+      <div class="flow" style="margin-bottom:12px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;">FLOW: DELETE HANDLING</div>
+        <div class="flow-row">
+          <div class="node device">deviceA<br><span style="font-size:10px">delete_note()</span></div>
+          <div class="arrow"><div class="line"></div><div class="label">set deleted_time</div><div class="arrow-head">→</div></div>
+          <div class="node db">DB<br><span style="font-size:10px">UNIX ms</span></div>
+        </div>
+        <div style="margin:8px 0 8px 16px; color:var(--muted); font-size:12px;">⬇ push() ไป remote (soft delete)</div>
+        <div class="flow-row">
+          <div class="node device">deviceA</div>
+          <div class="arrow"><div class="line"></div><div class="label">push</div><div class="arrow-head">→</div></div>
+          <div class="node remote">remote<br>.md (deleted)</div>
+          <div class="arrow"><div class="line"></div><div class="label">hard delete</div><div class="arrow-head">→</div></div>
+          <div class="node conflict">tombstone<br>in delta log</div>
+        </div>
+        <div style="margin:8px 0 8px 16px; color:var(--muted); font-size:12px;">⬇ deviceB delta sync</div>
+        <div class="flow-row">
+          <div class="node device">deviceB</div>
+          <div class="arrow"><div class="line"></div><div class="label">detect delete</div><div class="arrow-head">→</div></div>
+          <div class="node conflict">ลบ note<br>จาก DB ✓</div>
+        </div>
+      </div>
+      <div style="background:rgba(255,107,107,.07);border:1px solid var(--accent2);border-radius:8px;padding:14px;margin-bottom:12px;font-size:13px;">
+        <strong style="color:var(--accent2)">deleted_time</strong> เก็บเป็น UNIX timestamp (milliseconds) เช่น <code style="color:var(--accent3)">1772272960230</code><br>
+        ถ้า <code>deleted_time = 0</code> หมายถึงยังไม่ถูกลบ (active note)
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num red">1</div><div class="step-body"><h4>Soft Delete (local)</h4><p>set <code>deleted_time = now_unix()</code> (ms) แต่ยังเก็บ note ไว้ใน DB</p></div></div>
+        <div class="step"><div class="step-num red">2</div><div class="step-body"><h4>Push soft-delete ไป remote</h4><p>อัพโหลด .md ที่มี <code>deleted_time</code> ไปที่ remote ก่อน</p></div></div>
+        <div class="step"><div class="step-num red">3</div><div class="step-body"><h4>Hard Delete จาก remote</h4><p>ลบ .md ออกจาก remote จริงๆ delta_log บันทึก <code>action: delete</code> (tombstone)</p></div></div>
+        <div class="step"><div class="step-num red">4</div><div class="step-body"><h4>Device อื่น sync → ลบตาม</h4><p>delta sync เห็น action delete → ลบ note ออกจาก local DB และ disk</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- SECTION 4: KEY CONCEPTS TABLE     -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><div class="num">4</div>Concept สำคัญ</div>
+
+    <div class="flow">
+      <table>
+        <thead>
+          <tr><th>Concept</th><th>คืออะไร</th><th>ใช้ทำอะไร</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag yellow">cursor</span></td>
+            <td>ตัวเลข integer ที่เพิ่มทีละ 1 ทุกครั้งที่ remote มีการเปลี่ยนแปลง</td>
+            <td>บอก device ว่า "sync ถึงตรงไหนแล้ว" ไม่ต้อง pull ทั้งหมด</td>
+          </tr>
+          <tr>
+            <td><span class="tag green">sync_state</span></td>
+            <td>เก็บ hash ของ .md และเวลาที่ sync ล่าสุดสำหรับแต่ละ note</td>
+            <td>ตรวจว่า local note ถูกแก้ไขหลัง sync หรือเปล่า (conflict detection)</td>
+          </tr>
+          <tr>
+            <td><span class="tag blue">delta log</span></td>
+            <td>ไฟล์ JSON ที่บันทึก action ทุกอย่างบน remote (put/delete) + timestamp</td>
+            <td>ให้ device ดึงเฉพาะ "สิ่งที่เปลี่ยนแปลง" แทน list ทั้งหมด</td>
+          </tr>
+          <tr>
+            <td><span class="tag red">conflict</span></td>
+            <td>local แก้ไข note AND remote ก็แก้ note เดียวกันพร้อมกัน</td>
+            <td>บันทึกทั้ง 2 เวอร์ชันใน <code>_conflicts/</code> ให้ผู้ใช้ตัดสินใจ</td>
+          </tr>
+          <tr>
+            <td><span class="tag yellow">deleted_time</span></td>
+            <td>UNIX ms (เช่น 1772272960230) หรือ <code>0</code> ถ้ายังไม่ลบ</td>
+            <td>บอก device อื่นว่า note นี้ถูกลบไปแล้ว</td>
+          </tr>
+          <tr>
+            <td><span class="tag green">full sync</span></td>
+            <td>ดึงทุกไฟล์จาก remote ไม่สนใจ cursor</td>
+            <td>ใช้ครั้งแรกเท่านั้น (device ใหม่) หลังจากนั้นใช้ delta sync</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- SECTION 5: SUMMARY FLOW           -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><div class="num">5</div>Decision Flow เมื่อ Device Sync</div>
+
+    <div class="flow">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">เมื่อ device เรียก sync()</div>
+
+      <!-- Decision tree via CSS -->
+      <div style="display:flex;flex-direction:column;gap:0;align-items:center;">
+
+        <div style="background:#1a1f2e;border:1px solid var(--accent4);border-radius:8px;padding:10px 20px;font-family:var(--mono);font-size:12px;color:var(--accent4);">
+          มี cursor ใน DB ไหม?
+        </div>
+        <div style="display:flex;gap:60px;margin-top:0;align-items:flex-start;width:100%;justify-content:center;">
+          <!-- NO branch -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="height:24px;width:1px;background:var(--border)"></div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">❌ ไม่มี</div>
+            <div style="height:16px;width:1px;background:var(--border)"></div>
+            <div style="background:#1a1f2e;border:1.5px solid var(--accent4);border-radius:8px;padding:8px 14px;font-family:var(--mono);font-size:11px;color:var(--accent4);text-align:center;">
+              full_sync()<br><span style="color:var(--muted)">ดึงทุกไฟล์</span>
+            </div>
+          </div>
+          <!-- YES branch -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="height:24px;width:1px;background:var(--border)"></div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">✅ มี</div>
+            <div style="height:16px;width:1px;background:var(--border)"></div>
+            <div style="background:#1a1f2e;border:1.5px solid var(--accent);border-radius:8px;padding:8px 14px;font-family:var(--mono);font-size:11px;color:var(--accent);text-align:center;">
+              delta_sync()<br><span style="color:var(--muted)">ดึงแค่ที่เปลี่ยน</span>
+            </div>
+            <div style="height:16px;width:1px;background:var(--border)"></div>
+            <div style="background:#1a1f2e;border:1.5px solid var(--accent3);border-radius:8px;padding:8px 14px;font-family:var(--mono);font-size:11px;color:var(--accent3);text-align:center;">
+              ตรวจ conflict?<br><span style="color:var(--muted)">hash เปลี่ยน + remote ใหม่กว่า</span>
+            </div>
+            <div style="display:flex;gap:40px;align-items:flex-start;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div style="height:16px;width:1px;background:var(--border)"></div>
+                <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">✅ ไม่ conflict</div>
+                <div style="height:12px;width:1px;background:var(--border)"></div>
+                <div style="background:rgba(79,255,176,.1);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;font-family:var(--mono);font-size:10px;color:var(--accent);">merge ปกติ</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div style="height:16px;width:1px;background:var(--border)"></div>
+                <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">⚠️ conflict!</div>
+                <div style="height:12px;width:1px;background:var(--border)"></div>
+                <div style="background:rgba(255,107,107,.1);border:1px solid var(--accent2);border-radius:6px;padding:6px 12px;font-family:var(--mono);font-size:10px;color:var(--accent2);">_conflicts/</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;width:100%;height:1px;background:var(--border)"></div>
+        <div style="margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;">
+          ทุก path → update sync_state + เลื่อน cursor
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.scenario').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
